@@ -13,24 +13,36 @@ import (
 	"github.com/google/uuid"
 )
 
-func createOrLoginUser(url string, req CreateOrLoginUserRequest) (*http.Response, error) {
+func emulateHttp[T any](method string, body T, handler http.Handler) (*http.Response, error) {
 	var reqBody bytes.Buffer
-	err := json.NewEncoder(&reqBody).Encode(req)
+	err := json.NewEncoder(&reqBody).Encode(body)
 	if err != nil {
 		return nil, err
 	}
-	return http.Post(url, "application/json", &reqBody)
+
+	httpReq, err := http.NewRequest(method, "/", &reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, httpReq)
+	return w.Result(), nil
+}
+
+func createOrLoginUser(req CreateOrLoginUserRequest) (*http.Response, error) {
+	return emulateHttp(string(http.MethodPost), req, http.HandlerFunc(CreateOrLoginUser))
 }
 
 func TestCreateOrLoginUser(t *testing.T) {
 	tests := []struct {
 		name  string // description of this test case
-		doReq func(url string, t *testing.T)
+		doReq func(t *testing.T)
 	}{
 		{
 			name: "Register new user",
-			doReq: func(url string, t *testing.T) {
-				resp, err := createOrLoginUser(url, CreateOrLoginUserRequest{Username: "fagd", Password: "12345"})
+			doReq: func(t *testing.T) {
+				resp, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "fagd", Password: "12345"})
 				if err != nil {
 					t.Fatalf("Failed to make request: %s", err)
 				}
@@ -48,13 +60,13 @@ func TestCreateOrLoginUser(t *testing.T) {
 		},
 		{
 			name: "Login user",
-			doReq: func(url string, t *testing.T) {
-				_, err := createOrLoginUser(url, CreateOrLoginUserRequest{Username: "fagd", Password: "12345"})
+			doReq: func(t *testing.T) {
+				_, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "fagd", Password: "12345"})
 				if err != nil {
 					t.Fatalf("Failed to make request: %s", err)
 				}
 
-				resp, err := createOrLoginUser(url, CreateOrLoginUserRequest{Username: "fagd", Password: "12345"})
+				resp, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "fagd", Password: "12345"})
 				if err != nil {
 					t.Fatalf("Failed to make request: %s", err)
 				}
@@ -74,30 +86,14 @@ func TestCreateOrLoginUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(CreateOrLoginUser))
-			defer server.Close()
-			defer CleanGlobalState()
-
-			tt.doReq(server.URL, t)
+			CleanGlobalState()
+			tt.doReq(t)
 		})
 	}
 }
 
 func createPoll(req CreatePollRequest) (*http.Response, error) {
-	var reqBody bytes.Buffer
-	err := json.NewEncoder(&reqBody).Encode(req)
-	if err != nil {
-		return nil, err
-	}
-	httpReq, err := http.NewRequest(http.MethodPost, "/", &reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	w := httptest.NewRecorder()
-	CreatePoll(w, httpReq)
-
-	return w.Result(), nil
+	return emulateHttp(string(http.MethodPost), req, http.HandlerFunc(CreatePoll))
 }
 
 func TestCreatePoll(t *testing.T) {
@@ -138,15 +134,14 @@ func TestCreatePoll(t *testing.T) {
 }
 
 func getPollInfo(pollId uuid.UUID) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodPost, "/", nil)
+	httpReq, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		return nil, err
 	}
-	req.SetPathValue("pollId", pollId.String())
+	httpReq.SetPathValue("pollId", pollId.String())
 
 	w := httptest.NewRecorder()
-	GetPollInfo(w, req)
-
+	GetPollInfo(w, httpReq)
 	return w.Result(), nil
 }
 
@@ -202,8 +197,75 @@ func TestGetPollInfo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.doReq(t)
 			CleanGlobalState()
+			tt.doReq(t)
+		})
+	}
+}
+
+func voteInPoll(req VoteInPollRequest) (*http.Response, error) {
+	return emulateHttp(http.MethodPost, req, http.HandlerFunc(VoteInPoll))
+}
+
+func TestVoteInPoll(t *testing.T) {
+	tests := []struct {
+		name  string // description of this test case
+		doReq func(*testing.T)
+	}{
+		{
+			name: "Vote in existent poll",
+			doReq: func(t *testing.T) {
+				_, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "FAGD", Password: "12345"})
+				if err != nil {
+					t.Fatalf("Failed to create user: %s", err)
+				}
+
+				resp, err := createPoll(CreatePollRequest{
+					Title:     "Lenguaje",
+					PollUntil: time.Now().Add(5 * time.Second),
+					PollOptions: []string{
+						"Español", "Alemán", "Inglés",
+					},
+				})
+				if err != nil {
+					t.Fatalf("Failed to create poll: %s", err)
+				}
+
+				if resp.StatusCode != http.StatusOK {
+					bodyStr, _ := io.ReadAll(resp.Body)
+					t.Fatalf("Poll creation failed somehow (%d): %s", resp.StatusCode, &bodyStr)
+				}
+
+				var pollResponse CreatePollResponse
+				err = json.NewDecoder(resp.Body).Decode(&pollResponse)
+				if err != nil {
+					t.Fatalf("Failed to decode response: %s", err)
+				}
+
+				resp, err = voteInPoll(VoteInPollRequest{
+					Username: "FAGD",
+					PollId:   pollResponse.PollId,
+					Options: map[string]uint{
+						"Español": 1,
+						"Alemán":  3,
+						"Inglés":  2,
+					},
+				})
+				if err != nil {
+					t.Fatalf("Failed make request: %s", err)
+				}
+
+				if resp.StatusCode != http.StatusOK {
+					bodyStr, _ := io.ReadAll(resp.Body)
+					t.Fatalf("Poll voting failed somehow (%d): %s", resp.StatusCode, &bodyStr)
+				}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			CleanGlobalState()
+			tt.doReq(t)
 		})
 	}
 }

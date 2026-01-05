@@ -16,16 +16,21 @@ type Params struct {
 }
 
 type State struct {
-	Users sync.Map
-	Rooms sync.Map
+	Lock  *sync.RWMutex
+	Users map[string]string
+	Rooms map[string]Room
 }
 
-var GlobalState = State{}
+var GlobalState = State{
+	Lock:  &sync.RWMutex{},
+	Users: make(map[string]string),
+	Rooms: make(map[string]Room),
+}
 
 func CleanGlobalState() {
 	log.Println("Cleaning global state...")
-	GlobalState.Users.Clear()
-	GlobalState.Rooms.Clear()
+	clear(GlobalState.Users)
+	clear(GlobalState.Rooms)
 	log.Println("DONE!")
 }
 
