@@ -301,7 +301,7 @@ func TestVoteInPoll(t *testing.T) {
 					},
 				})
 				if err != nil {
-					t.Fatalf("Failed make request: %s", err)
+					t.Fatalf("Failed to make request: %s", err)
 				}
 
 				if resp.StatusCode == http.StatusOK {
