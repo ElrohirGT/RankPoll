@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -53,7 +54,8 @@ type CreatePollRequest struct {
 	PollUntil   time.Time
 }
 type CreatePollResponse struct {
-	Msg string
+	PollId uuid.UUID
+	Msg    string
 }
 
 func CreatePoll(w http.ResponseWriter, r *http.Request) {
@@ -76,12 +78,19 @@ func CreatePoll(w http.ResponseWriter, r *http.Request) {
 	GlobalState.Rooms.Store(key, room)
 
 	_ = response.NewResponseBuilder(http.StatusOK).
-		SetBody(CreatePollResponse{Msg: "Success!"}).
+		SetBody(CreatePollResponse{Msg: "Success!", PollId: id}).
 		SendAsJSON(w)
 }
 
 func GetPollInfo(w http.ResponseWriter, r *http.Request) {
 	pollStrId := r.PathValue("pollId")
+	if pollStrId == "" {
+		_ = response.NewResponseBuilder(http.StatusNotFound).
+			SetError("Poll not found!", errors.New("no pollId supplied")).
+			SendAsJSON(w)
+		return
+	}
+	log.Printf("The poll id from the path is: %s", pollStrId)
 
 	pollId, err := uuid.Parse(pollStrId)
 	if err != nil {
@@ -92,6 +101,7 @@ func GetPollInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pollInfo, found := GlobalState.Rooms.Load(pollId.String())
+	log.Printf("Room already exists? %t", found)
 	if !found {
 		_ = response.NewResponseBuilder(http.StatusNotFound).
 			SetError("Poll not found!", err).

@@ -23,8 +23,10 @@ type State struct {
 var GlobalState = State{}
 
 func CleanGlobalState() {
+	log.Println("Cleaning global state...")
 	GlobalState.Users.Clear()
 	GlobalState.Rooms.Clear()
+	log.Println("DONE!")
 }
 
 func main() {
