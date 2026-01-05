@@ -74,6 +74,20 @@ func CreatePoll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(req.PollOptions) == 0 {
+		_ = response.NewResponseBuilder(http.StatusBadRequest).
+			SetError("Invalid option count!", errors.New("can't have a poll with 0 options")).
+			SendAsJSON(w)
+		return
+	}
+
+	if len(req.PollOptions) == 1 {
+		_ = response.NewResponseBuilder(http.StatusBadRequest).
+			SetError("Invalid option count!", errors.New("can't have a poll with only 1 option")).
+			SendAsJSON(w)
+		return
+	}
+
 	id := uuid.New()
 	key := id.String()
 	room := Room{
@@ -94,6 +108,8 @@ func CreatePoll(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetPollInfo(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+
 	pollStrId := r.PathValue("pollId")
 	if pollStrId == "" {
 		_ = response.NewResponseBuilder(http.StatusNotFound).
@@ -112,10 +128,10 @@ func GetPollInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	GlobalState.Lock.RLock()
-	defer GlobalState.Lock.RUnlock()
-
 	pollInfo, found := GlobalState.Rooms[pollId.String()]
+	GlobalState.Lock.RUnlock()
 	log.Printf("Room already exists? %t", found)
+
 	if !found {
 		_ = response.NewResponseBuilder(http.StatusNotFound).
 			SetError("Poll not found!", err).
@@ -123,9 +139,70 @@ func GetPollInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	shouldComputeSummary := now.After(pollInfo.ValidUntil) && pollInfo.Summary == nil
+	if shouldComputeSummary {
+		computeSummary(&pollInfo)
+	}
+
+	GlobalState.Lock.Lock()
+	GlobalState.Rooms[pollId.String()] = pollInfo
+	GlobalState.Lock.Unlock()
+
 	_ = response.NewResponseBuilder(http.StatusOK).
 		SetBody(pollInfo).
 		SendAsJSON(w)
+}
+
+func computeSummary(room *Room) {
+	summary := &PollSummary{
+		Rounds: make([]map[string]uint, 0),
+	}
+
+	for roundIdx := range len(room.Options) {
+		round := uint(roundIdx + 1)
+		roundTally := make(map[string]uint)
+
+		for _, vote := range room.Votes {
+			for _, r := range vote.Ranking {
+				if r.Position > round {
+					continue
+				}
+
+				roundTally[r.Option] += 1
+			}
+		}
+
+		summary.Rounds = append(summary.Rounds, roundTally)
+
+		maxOpt := "INVALID"
+		var maxCount uint = 0
+		var totalCount uint = 0
+		isUnique := true
+		for opt, voteCount := range roundTally {
+			totalCount += voteCount
+
+			if voteCount > maxCount {
+				maxOpt = opt
+				maxCount = voteCount
+				isUnique = true
+			} else if voteCount == maxCount {
+				isUnique = false
+			}
+		}
+
+		moreThanFraction := maxCount > (totalCount / uint(len(room.Options)))
+		log.Printf("Round: %d - IsUnique: %t\n", round, isUnique)
+		log.Printf("Computing summary: %d > (%d / %d)\n", maxCount, totalCount, len(room.Options))
+		if moreThanFraction && isUnique || round == uint(len(room.Options)) {
+			log.Printf("Winner: %s", maxOpt)
+			summary.Winner = maxOpt
+			summary.WinnerVoteCount = maxCount
+			summary.TotalVoteCount = totalCount
+			break
+		}
+	}
+
+	room.Summary = summary
 }
 
 type VoteInPollRequest struct {

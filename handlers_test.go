@@ -44,17 +44,17 @@ func TestCreateOrLoginUser(t *testing.T) {
 			doReq: func(t *testing.T) {
 				resp, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "fagd", Password: "12345"})
 				if err != nil {
-					t.Fatalf("Failed to make request: %s", err)
+					t.Fatalf("Failed to make request: %s\n", err)
 				}
 
 				respBody, err := io.ReadAll(resp.Body)
 				if err != nil {
-					t.Fatalf("Failed to read body: %s", err)
+					t.Fatalf("Failed to read body: %s\n", err)
 				}
 
 				bodyStr := strings.TrimSpace(string(respBody))
 				if !strings.Contains(bodyStr, "Registered") {
-					t.Fatalf("Response doesn't contain registered!")
+					t.Fatalf("Response doesn't contain registered!\n")
 				}
 			},
 		},
@@ -63,22 +63,22 @@ func TestCreateOrLoginUser(t *testing.T) {
 			doReq: func(t *testing.T) {
 				_, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "fagd", Password: "12345"})
 				if err != nil {
-					t.Fatalf("Failed to make request: %s", err)
+					t.Fatalf("Failed to make request: %s\n", err)
 				}
 
 				resp, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "fagd", Password: "12345"})
 				if err != nil {
-					t.Fatalf("Failed to make request: %s", err)
+					t.Fatalf("Failed to make request: %s\n", err)
 				}
 
 				respBody, err := io.ReadAll(resp.Body)
 				if err != nil {
-					t.Fatalf("Failed to read body: %s", err)
+					t.Fatalf("Failed to read body: %s\n", err)
 				}
 
 				bodyStr := strings.TrimSpace(string(respBody))
 				if !strings.Contains(bodyStr, "logging") {
-					t.Fatalf("Response doesn't contain logging!")
+					t.Fatalf("Response doesn't contain logging!\n")
 				}
 			},
 		},
@@ -110,16 +110,16 @@ func TestCreatePoll(t *testing.T) {
 					PollingDuration: 0,
 				})
 				if err != nil {
-					t.Fatalf("Failed to make make request: %s", err)
+					t.Fatalf("Failed to make make request: %s\n", err)
 				}
 
 				respBytes, err := io.ReadAll(resp.Body)
 				if err != nil {
-					t.Fatalf("Failed to read body of request: %s", err)
+					t.Fatalf("Failed to read body of request: %s\n", err)
 				}
 
 				if !strings.Contains(string(respBytes), "Success") {
-					t.Fatalf("Failed to create basic poll! Body: %s", respBytes)
+					t.Fatalf("Failed to create basic poll! Body: %s\n", respBytes)
 				}
 			},
 		},
@@ -159,37 +159,148 @@ func TestGetPollInfo(t *testing.T) {
 					PollingDuration: 0,
 				})
 				if err != nil {
-					t.Fatalf("Failed to make make request: %s", err)
+					t.Fatalf("Failed to make make request: %s\n", err)
 				}
 
 				var createPollResponse CreatePollResponse
 				err = json.NewDecoder(resp.Body).Decode(&createPollResponse)
 				if err != nil {
-					t.Fatalf("Failed to parse body: %s", err)
+					t.Fatalf("Failed to parse body: %s\n", err)
 				}
 
 				resp, err = getPollInfo(createPollResponse.PollId)
 				if err != nil {
-					t.Fatalf("Failed to make request: %s", err)
+					t.Fatalf("Failed to make request: %s\n", err)
 				}
 
 				if resp.StatusCode != http.StatusOK {
 					bodyStr, _ := io.ReadAll(resp.Body)
-					t.Fatalf("The request failed somehow (%d)! %s", resp.StatusCode, bodyStr)
+					t.Fatalf("The request failed somehow (%d)! %s\n", resp.StatusCode, bodyStr)
 				}
 
 				var roomInfo Room
 				err = json.NewDecoder(resp.Body).Decode(&roomInfo)
 				if err != nil {
-					t.Fatalf("Failed to decode body: %s", err)
+					t.Fatalf("Failed to decode body: %s\n", err)
 				}
 
 				if roomInfo.Id != createPollResponse.PollId {
-					t.Fatalf("Ids don't match! %s != %s", roomInfo.Id, createPollResponse.PollId)
+					t.Fatalf("Ids don't match! %s != %s\n", roomInfo.Id, createPollResponse.PollId)
 				}
 
 				if len(roomInfo.Options) != 3 {
-					t.Fatalf("Room info options isn't 3!!! (%d)", len(roomInfo.Options))
+					t.Fatalf("Room info options isn't 3!!! (%d)\n", len(roomInfo.Options))
+				}
+			},
+		},
+		{
+			name: "Create and get poll info after voting",
+			doReq: func(t *testing.T) {
+				resp, err := createPoll(CreatePollRequest{
+					Title:           "Favorite Profesion?",
+					PollOptions:     []string{"Teacher", "Doctor", "Plumber"},
+					PollingDuration: 300 * time.Millisecond,
+				})
+				if err != nil {
+					t.Fatalf("Failed to make make request: %s\n", err)
+				}
+
+				var createPollResponse CreatePollResponse
+				err = json.NewDecoder(resp.Body).Decode(&createPollResponse)
+				if err != nil {
+					t.Fatalf("Failed to parse body: %s\n", err)
+				}
+
+				_, err = createOrLoginUser(CreateOrLoginUserRequest{Username: "Tyron", Password: "12345"})
+				if err != nil {
+					t.Fatalf("Failed to create user: %s\n", err)
+				}
+
+				_, err = createOrLoginUser(CreateOrLoginUserRequest{Username: "Yuniqua", Password: "12345"})
+				if err != nil {
+					t.Fatalf("Failed to create user: %s\n", err)
+				}
+
+				_, err = createOrLoginUser(CreateOrLoginUserRequest{Username: "Pablo", Password: "12345"})
+				if err != nil {
+					t.Fatalf("Failed to create user: %s\n", err)
+				}
+
+				_, err = createOrLoginUser(CreateOrLoginUserRequest{Username: "Tasha", Password: "12345"})
+				if err != nil {
+					t.Fatalf("Failed to create user: %s\n", err)
+				}
+
+				resp, err = voteInPoll(VoteInPollRequest{Username: "Tyron", PollId: createPollResponse.PollId, Options: map[string]uint{
+					"Teacher": 2,
+					"Doctor":  1,
+					"Plumber": 3,
+				}})
+				if err != nil {
+					t.Fatalf("Failed to vote in poll: %s\n", err)
+				}
+				if resp.StatusCode != http.StatusOK {
+					bodyStr, _ := io.ReadAll(resp.Body)
+					t.Fatalf("Failed to vote in poll by some reason (%d): %s\n", resp.StatusCode, bodyStr)
+				}
+
+				resp, err = voteInPoll(VoteInPollRequest{Username: "Pablo", PollId: createPollResponse.PollId, Options: map[string]uint{
+					"Teacher": 3,
+					"Doctor":  1,
+					"Plumber": 2,
+				}})
+				if err != nil {
+					t.Fatalf("Failed to vote in poll: %s\n", err)
+				}
+				if resp.StatusCode != http.StatusOK {
+					bodyStr, _ := io.ReadAll(resp.Body)
+					t.Fatalf("Failed to vote in poll by some reason (%d): %s\n", resp.StatusCode, bodyStr)
+				}
+
+				resp, err = voteInPoll(VoteInPollRequest{Username: "Yuniqua", PollId: createPollResponse.PollId, Options: map[string]uint{
+					"Teacher": 1,
+					"Doctor":  2,
+					"Plumber": 1,
+				}})
+				if err != nil {
+					t.Fatalf("Failed to vote in poll: %s\n", err)
+				}
+				if resp.StatusCode != http.StatusOK {
+					bodyStr, _ := io.ReadAll(resp.Body)
+					t.Fatalf("Failed to vote in poll by some reason (%d): %s\n", resp.StatusCode, bodyStr)
+				}
+
+				resp, err = voteInPoll(VoteInPollRequest{Username: "Tasha", PollId: createPollResponse.PollId, Options: map[string]uint{
+					"Teacher": 1,
+					"Doctor":  2,
+					"Plumber": 2,
+				}})
+				if err != nil {
+					t.Fatalf("Failed to vote in poll: %s\n", err)
+				}
+				if resp.StatusCode != http.StatusOK {
+					bodyStr, _ := io.ReadAll(resp.Body)
+					t.Fatalf("Failed to vote in poll by some reason (%d): %s\n", resp.StatusCode, bodyStr)
+				}
+
+				time.Sleep(300 * time.Millisecond)
+				resp, err = getPollInfo(createPollResponse.PollId)
+				if err != nil {
+					t.Fatalf("Failed to get poll info: %s\n", err)
+				}
+
+				var respBody Room
+				err = json.NewDecoder(resp.Body).Decode(&respBody)
+				if err != nil {
+					t.Fatalf("Can't parse body of poll info: %s\n", err)
+				}
+
+				if respBody.Summary == nil {
+					t.Fatalf("Polling hasn't ended but it should have!\n")
+				}
+
+				if respBody.Summary.Winner != "Doctor" {
+					t.Fatalf("Doctor didn't win! Instead %s won.\n%#v", respBody.Summary.Winner, *respBody.Summary)
 				}
 			},
 		},
@@ -217,7 +328,7 @@ func TestVoteInPoll(t *testing.T) {
 			doReq: func(t *testing.T) {
 				_, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "FAGD", Password: "12345"})
 				if err != nil {
-					t.Fatalf("Failed to create user: %s", err)
+					t.Fatalf("Failed to create user: %s\n", err)
 				}
 
 				resp, err := createPoll(CreatePollRequest{
@@ -228,18 +339,18 @@ func TestVoteInPoll(t *testing.T) {
 					},
 				})
 				if err != nil {
-					t.Fatalf("Failed to create poll: %s", err)
+					t.Fatalf("Failed to create poll: %s\n", err)
 				}
 
 				if resp.StatusCode != http.StatusOK {
 					bodyStr, _ := io.ReadAll(resp.Body)
-					t.Fatalf("Poll creation failed somehow (%d): %s", resp.StatusCode, &bodyStr)
+					t.Fatalf("Poll creation failed somehow (%d): %s\n", resp.StatusCode, &bodyStr)
 				}
 
 				var pollResponse CreatePollResponse
 				err = json.NewDecoder(resp.Body).Decode(&pollResponse)
 				if err != nil {
-					t.Fatalf("Failed to decode response: %s", err)
+					t.Fatalf("Failed to decode response: %s\n", err)
 				}
 
 				resp, err = voteInPoll(VoteInPollRequest{
@@ -252,12 +363,12 @@ func TestVoteInPoll(t *testing.T) {
 					},
 				})
 				if err != nil {
-					t.Fatalf("Failed make request: %s", err)
+					t.Fatalf("Failed make request: %s\n", err)
 				}
 
 				if resp.StatusCode != http.StatusOK {
 					bodyStr, _ := io.ReadAll(resp.Body)
-					t.Fatalf("Poll voting failed somehow (%d): %s", resp.StatusCode, &bodyStr)
+					t.Fatalf("Poll voting failed somehow (%d): %s\n", resp.StatusCode, &bodyStr)
 				}
 			},
 		},
@@ -266,7 +377,7 @@ func TestVoteInPoll(t *testing.T) {
 			doReq: func(t *testing.T) {
 				_, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "FAGD", Password: "12345"})
 				if err != nil {
-					t.Fatalf("Failed to create user: %s", err)
+					t.Fatalf("Failed to create user: %s\n", err)
 				}
 
 				resp, err := createPoll(CreatePollRequest{
@@ -277,18 +388,18 @@ func TestVoteInPoll(t *testing.T) {
 					},
 				})
 				if err != nil {
-					t.Fatalf("Failed to create poll: %s", err)
+					t.Fatalf("Failed to create poll: %s\n", err)
 				}
 
 				if resp.StatusCode != http.StatusOK {
 					bodyStr, _ := io.ReadAll(resp.Body)
-					t.Fatalf("Poll creation failed somehow (%d): %s", resp.StatusCode, &bodyStr)
+					t.Fatalf("Poll creation failed somehow (%d): %s\n", resp.StatusCode, &bodyStr)
 				}
 
 				var pollResponse CreatePollResponse
 				err = json.NewDecoder(resp.Body).Decode(&pollResponse)
 				if err != nil {
-					t.Fatalf("Failed to decode response: %s", err)
+					t.Fatalf("Failed to decode response: %s\n", err)
 				}
 
 				resp, err = voteInPoll(VoteInPollRequest{
@@ -301,12 +412,12 @@ func TestVoteInPoll(t *testing.T) {
 					},
 				})
 				if err != nil {
-					t.Fatalf("Failed to make request: %s", err)
+					t.Fatalf("Failed to make request: %s\n", err)
 				}
 
 				if resp.StatusCode == http.StatusOK {
 					bodyStr, _ := io.ReadAll(resp.Body)
-					t.Fatalf("Poll voting should have failed but it didn't (%d): %s", resp.StatusCode, &bodyStr)
+					t.Fatalf("Poll voting should have failed but it didn't (%d): %s\n", resp.StatusCode, &bodyStr)
 				}
 			},
 		},

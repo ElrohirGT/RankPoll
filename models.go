@@ -17,12 +17,16 @@ type Vote struct {
 }
 
 type PollSummary struct {
+	Winner          string
+	WinnerVoteCount uint
+	TotalVoteCount  uint
+	Rounds          []map[string]uint
 }
 
 type Room struct {
 	Id         uuid.UUID
 	Options    []string
 	Votes      map[string]Vote
-	Result     PollSummary
+	Summary    *PollSummary
 	ValidUntil time.Time
 }
