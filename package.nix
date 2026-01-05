@@ -1,0 +1,4 @@
+{buildGoModule}:
+buildGoModule {
+  src = ./.;
+}
