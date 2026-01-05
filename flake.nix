@@ -30,6 +30,12 @@
           pkgs.go
           pkgs.gotools
           pkgs.go-tools
+
+          pkgs.pnpm
+          pkgs.nodejs
+          pkgs.elmPackages.elm
+          pkgs.elmPackages.elm-format
+          pkgs.elmPackages.elm-review
         ];
       };
     });
