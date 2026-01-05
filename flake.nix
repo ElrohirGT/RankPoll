@@ -33,6 +33,7 @@
 
           pkgs.pnpm
           pkgs.nodejs
+          pkgs.biome
           pkgs.elmPackages.elm
           pkgs.elmPackages.elm-format
           pkgs.elmPackages.elm-review
