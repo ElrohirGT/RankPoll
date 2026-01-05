@@ -105,9 +105,9 @@ func TestCreatePoll(t *testing.T) {
 			name: "Create new basic poll",
 			doReq: func(t *testing.T) {
 				resp, err := createPoll(CreatePollRequest{
-					Title:       "Favorite Profesion?",
-					PollOptions: []string{"Teacher", "Doctor", "Plumber"},
-					PollUntil:   time.Now(),
+					Title:           "Favorite Profesion?",
+					PollOptions:     []string{"Teacher", "Doctor", "Plumber"},
+					PollingDuration: 0,
 				})
 				if err != nil {
 					t.Fatalf("Failed to make make request: %s", err)
@@ -154,9 +154,9 @@ func TestGetPollInfo(t *testing.T) {
 			name: "Create and get poll info",
 			doReq: func(t *testing.T) {
 				resp, err := createPoll(CreatePollRequest{
-					Title:       "Favorite Profesion?",
-					PollOptions: []string{"Teacher", "Doctor", "Plumber"},
-					PollUntil:   time.Now(),
+					Title:           "Favorite Profesion?",
+					PollOptions:     []string{"Teacher", "Doctor", "Plumber"},
+					PollingDuration: 0,
 				})
 				if err != nil {
 					t.Fatalf("Failed to make make request: %s", err)
@@ -213,7 +213,7 @@ func TestVoteInPoll(t *testing.T) {
 		doReq func(*testing.T)
 	}{
 		{
-			name: "Vote in existent poll",
+			name: "Vote in existent valid poll",
 			doReq: func(t *testing.T) {
 				_, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "FAGD", Password: "12345"})
 				if err != nil {
@@ -221,8 +221,8 @@ func TestVoteInPoll(t *testing.T) {
 				}
 
 				resp, err := createPoll(CreatePollRequest{
-					Title:     "Lenguaje",
-					PollUntil: time.Now().Add(5 * time.Second),
+					Title:           "Lenguaje",
+					PollingDuration: 5 * time.Second,
 					PollOptions: []string{
 						"Español", "Alemán", "Inglés",
 					},
@@ -258,6 +258,55 @@ func TestVoteInPoll(t *testing.T) {
 				if resp.StatusCode != http.StatusOK {
 					bodyStr, _ := io.ReadAll(resp.Body)
 					t.Fatalf("Poll voting failed somehow (%d): %s", resp.StatusCode, &bodyStr)
+				}
+			},
+		},
+		{
+			name: "Vote in existent non valid poll",
+			doReq: func(t *testing.T) {
+				_, err := createOrLoginUser(CreateOrLoginUserRequest{Username: "FAGD", Password: "12345"})
+				if err != nil {
+					t.Fatalf("Failed to create user: %s", err)
+				}
+
+				resp, err := createPoll(CreatePollRequest{
+					Title:           "Lenguaje",
+					PollingDuration: 0,
+					PollOptions: []string{
+						"Español", "Alemán", "Inglés",
+					},
+				})
+				if err != nil {
+					t.Fatalf("Failed to create poll: %s", err)
+				}
+
+				if resp.StatusCode != http.StatusOK {
+					bodyStr, _ := io.ReadAll(resp.Body)
+					t.Fatalf("Poll creation failed somehow (%d): %s", resp.StatusCode, &bodyStr)
+				}
+
+				var pollResponse CreatePollResponse
+				err = json.NewDecoder(resp.Body).Decode(&pollResponse)
+				if err != nil {
+					t.Fatalf("Failed to decode response: %s", err)
+				}
+
+				resp, err = voteInPoll(VoteInPollRequest{
+					Username: "FAGD",
+					PollId:   pollResponse.PollId,
+					Options: map[string]uint{
+						"Español": 1,
+						"Alemán":  3,
+						"Inglés":  2,
+					},
+				})
+				if err != nil {
+					t.Fatalf("Failed make request: %s", err)
+				}
+
+				if resp.StatusCode == http.StatusOK {
+					bodyStr, _ := io.ReadAll(resp.Body)
+					t.Fatalf("Poll voting should have failed but it didn't (%d): %s", resp.StatusCode, &bodyStr)
 				}
 			},
 		},

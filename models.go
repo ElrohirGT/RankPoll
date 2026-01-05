@@ -1,6 +1,10 @@
 package main
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Rank struct {
 	Option   string
@@ -16,8 +20,9 @@ type PollSummary struct {
 }
 
 type Room struct {
-	Id      uuid.UUID
-	Options []string
-	Votes   map[string]Vote
-	Result  PollSummary
+	Id         uuid.UUID
+	Options    []string
+	Votes      map[string]Vote
+	Result     PollSummary
+	ValidUntil time.Time
 }

@@ -55,9 +55,9 @@ func CreateOrLoginUser(w http.ResponseWriter, r *http.Request) {
 }
 
 type CreatePollRequest struct {
-	Title       string
-	PollOptions []string
-	PollUntil   time.Time
+	Title           string
+	PollOptions     []string
+	PollingDuration time.Duration
 }
 type CreatePollResponse struct {
 	PollId uuid.UUID
@@ -77,9 +77,10 @@ func CreatePoll(w http.ResponseWriter, r *http.Request) {
 	id := uuid.New()
 	key := id.String()
 	room := Room{
-		Id:      id,
-		Options: req.PollOptions,
-		Votes:   make(map[string]Vote),
+		Id:         id,
+		Options:    req.PollOptions,
+		Votes:      make(map[string]Vote),
+		ValidUntil: time.Now().Add(req.PollingDuration),
 	}
 	log.Printf("Storing new poll with id: %s\n", id)
 
@@ -134,6 +135,8 @@ type VoteInPollRequest struct {
 }
 
 func VoteInPoll(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+
 	var req VoteInPollRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -156,6 +159,13 @@ func VoteInPoll(w http.ResponseWriter, r *http.Request) {
 	if _, found := roomInfo.Votes[req.Username]; found {
 		_ = response.NewResponseBuilder(http.StatusBadRequest).
 			SetError("The user has already voted!", errors.New("a user can't vote twice")).
+			SendAsJSON(w)
+		return
+	}
+
+	if now.After(roomInfo.ValidUntil) {
+		_ = response.NewResponseBuilder(http.StatusBadRequest).
+			SetError("The poll already ended!", errors.New("the poll has ended")).
 			SendAsJSON(w)
 		return
 	}
