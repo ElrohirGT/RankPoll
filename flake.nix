@@ -17,7 +17,6 @@
   in {
     packages = forAllSystems (system: let
       pkgs = nixpkgsFor.${system};
-      # callPackage = pkgs.lib.callPackage;
     in {
       default = pkgs.callPackage ./package.nix {};
     });
