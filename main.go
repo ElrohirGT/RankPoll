@@ -12,8 +12,7 @@ import (
 )
 
 type Params struct {
-	Addr             string
-	GracefullTimeout time.Duration
+	Addr string
 }
 
 type State struct {
@@ -49,7 +48,7 @@ func main() {
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-c
 
-	ctx, cancel := context.WithTimeout(context.Background(), params.GracefullTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
 	go func() {
