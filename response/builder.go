@@ -37,6 +37,8 @@ func (r responseBuilder) SetError(msg string, reason error) responseBuilder {
 
 func (r responseBuilder) SendAsJSON(w http.ResponseWriter) error {
 	w.WriteHeader(r.status)
+	w.Header().Set("Content-Type", "application/json")
+
 	bodyBytes, err := json.Marshal(r.body)
 	if err != nil {
 		return err
