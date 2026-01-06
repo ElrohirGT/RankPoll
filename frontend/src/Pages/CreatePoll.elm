@@ -1,10 +1,12 @@
 module Pages.CreatePoll exposing (..)
 
+import Api
 import Browser
 import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
+import Http
 import Router
 import Types
 
@@ -22,7 +24,7 @@ init navigator =
             { title = ""
             , options = []
             , votes = Dict.empty
-            , validUntil = ""
+            , durationInMinutes = 0
             , summary = Nothing
             }
       , navigator = navigator
@@ -34,14 +36,15 @@ init navigator =
 
 type Msg
     = UpdateTitle String
-    | UpdateValidUntil String
+    | UpdateDuration Int
     | UpdateNewOption String
     | AddNewOption
     | CreatePoll
     | DeleteOption String
+    | PollCreated (Result Http.Error Api.CreatePollResponse)
 
 
-update : Msg -> Model -> ( Model, Cmd msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         room =
@@ -51,8 +54,8 @@ update msg model =
         UpdateTitle newTitle ->
             ( { model | room = { room | title = newTitle } }, Cmd.none )
 
-        UpdateValidUntil newValidUntil ->
-            ( { model | room = { room | validUntil = newValidUntil } }, Cmd.none )
+        UpdateDuration newValidUntil ->
+            ( { model | room = { room | durationInMinutes = newValidUntil } }, Cmd.none )
 
         UpdateNewOption newOption ->
             ( { model | newOption = newOption }, Cmd.none )
@@ -73,7 +76,9 @@ update msg model =
             )
 
         CreatePoll ->
-            -- TODO: Call backend
+            ( model, Api.createPoll PollCreated model.room )
+
+        PollCreated res ->
             ( model, Cmd.none )
 
 
@@ -81,10 +86,20 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "CreatePoll"
     , body =
-        [ input [ type_ "text", value model.room.title, onInput UpdateTitle ] []
+        [ input
+            [ type_ "text"
+            , value model.room.title
+            , onInput UpdateTitle
+            ]
+            []
             |> displayWithLabel "Title:"
-        , input [ type_ "datetime-local", value model.room.validUntil, onInput UpdateValidUntil ] []
-            |> displayWithLabel "Accept until:"
+        , input
+            [ type_ "number"
+            , value (String.fromInt model.room.durationInMinutes)
+            , onInput (\s -> UpdateDuration (Maybe.withDefault 0 (String.toInt s)))
+            ]
+            []
+            |> displayWithLabel "Minutes to vote:"
         , h2 [] [ text "Options:" ]
         , div []
             [ input [ placeholder "New Option:", value model.newOption, onInput UpdateNewOption ] []

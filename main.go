@@ -40,6 +40,7 @@ func main() {
 	router := http.NewServeMux()
 	MountHandlers(router)
 	withMiddlewares := ApplyMiddlewares(router,
+		RequestLoggerMiddleware,
 		CORSMiddleware,
 	)
 

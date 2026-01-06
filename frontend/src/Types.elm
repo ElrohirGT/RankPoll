@@ -1,7 +1,6 @@
 module Types exposing (..)
 
 import Dict exposing (Dict)
-import Time
 
 
 type alias Flags =
@@ -31,7 +30,7 @@ type alias Room =
     { title : String
     , options : List String
     , votes : Dict String Vote
-    , validUntil : String
+    , durationInMinutes : Int
     , summary : Maybe PollSummary
     }
 

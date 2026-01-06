@@ -1,5 +1,6 @@
 module Api exposing (..)
 
+import Constants
 import Http
 import Json.Decode as D
 import Json.Encode as E
@@ -38,4 +39,43 @@ loginOrCreateUser toMsg req =
         { url = String.concat [ basePath, "/api/user" ]
         , body = loginOrCreateUserRequestEncoder req |> Http.jsonBody
         , expect = Http.expectJson toMsg loginOrCreateUserResponseDecoder
+        }
+
+
+type alias CreatePollRequest a =
+    { a
+        | title : String
+        , options : List String
+        , durationInMinutes : Int
+    }
+
+
+createPollRequestEncoder : CreatePollRequest a -> E.Value
+createPollRequestEncoder a =
+    E.object
+        [ ( "Title", E.string a.title )
+        , ( "PollOptions", E.list E.string a.options )
+        , ( "PollingDuration", E.int (a.durationInMinutes * 60 * Constants.oneSecondInGo) )
+        ]
+
+
+type alias CreatePollResponse =
+    { msg : String
+    , pollId : String
+    }
+
+
+createPollResponseDecoder : D.Decoder CreatePollResponse
+createPollResponseDecoder =
+    D.map2 CreatePollResponse
+        (D.field "Msg" D.string)
+        (D.field "PollId" D.string)
+
+
+createPoll : (Result Http.Error CreatePollResponse -> msg) -> CreatePollRequest a -> Cmd msg
+createPoll toMsg req =
+    Http.post
+        { url = String.concat [ basePath, "/api/poll" ]
+        , body = createPollRequestEncoder req |> Http.jsonBody
+        , expect = Http.expectJson toMsg createPollResponseDecoder
         }
