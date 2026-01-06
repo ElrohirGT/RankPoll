@@ -78,6 +78,11 @@ update msg model =
                     ( model, model.navigator Router.CreatePoll )
 
 
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "Login"

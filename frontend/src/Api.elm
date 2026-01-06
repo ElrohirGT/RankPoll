@@ -79,3 +79,20 @@ createPoll toMsg req =
         , body = createPollRequestEncoder req |> Http.jsonBody
         , expect = Http.expectJson toMsg createPollResponseDecoder
         }
+
+
+type alias GetPollResponse =
+    Types.Room
+
+
+getPollResponseDecoder : D.Decoder GetPollResponse
+getPollResponseDecoder =
+    Types.roomDecoder
+
+
+getPoll : (Result Http.Error GetPollResponse -> msg) -> String -> Cmd msg
+getPoll toMsg pollId =
+    Http.get
+        { url = String.concat [ basePath, "/api/poll/", pollId ]
+        , expect = Http.expectJson toMsg getPollResponseDecoder
+        }

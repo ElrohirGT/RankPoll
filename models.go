@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 )
 
@@ -23,10 +21,13 @@ type PollSummary struct {
 	Rounds          []map[string]uint
 }
 
-type Room struct {
+// Normally T will be time.Time but sometimes it needs to be something else.
+// For example an int64 for representing Unix time.
+type Room[T any] struct {
 	Id         uuid.UUID
+	Title      string
 	Options    []string
 	Votes      map[string]Vote
 	Summary    *PollSummary
-	ValidUntil time.Time
+	ValidUntil T
 }

@@ -34,6 +34,11 @@ update msg model =
     ( model, Cmd.none )
 
 
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
+
+
 view : Model -> Browser.Document Msg
 view _ =
     { title = "NotFound!"

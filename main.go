@@ -18,13 +18,13 @@ type Params struct {
 type State struct {
 	Lock  *sync.RWMutex
 	Users map[string]string
-	Rooms map[string]Room
+	Rooms map[string]Room[time.Time]
 }
 
 var GlobalState = State{
 	Lock:  &sync.RWMutex{},
 	Users: make(map[string]string),
-	Rooms: make(map[string]Room),
+	Rooms: make(map[string]Room[time.Time]),
 }
 
 func CleanGlobalState() {

@@ -2,17 +2,17 @@ module Pages.CreatePoll exposing (..)
 
 import Api
 import Browser
-import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Router
-import Types
 
 
 type alias Model =
-    { room : Types.Room
+    { title : String
+    , options : List String
+    , durationInMinutes : Int
     , navigator : Router.Navigator Msg
     , newOption : String
     , error : Maybe String
@@ -21,13 +21,9 @@ type alias Model =
 
 init : Router.Navigator Msg -> ( Model, Cmd Msg )
 init navigator =
-    ( { room =
-            { title = ""
-            , options = []
-            , votes = Dict.empty
-            , durationInMinutes = 0
-            , summary = Nothing
-            }
+    ( { title = ""
+      , options = []
+      , durationInMinutes = 0
       , navigator = navigator
       , newOption = ""
       , error = Nothing
@@ -48,23 +44,19 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        room =
-            model.room
-    in
     case msg of
         UpdateTitle newTitle ->
-            ( { model | room = { room | title = newTitle } }, Cmd.none )
+            ( { model | title = newTitle }, Cmd.none )
 
         UpdateDuration newValidUntil ->
-            ( { model | room = { room | durationInMinutes = newValidUntil } }, Cmd.none )
+            ( { model | durationInMinutes = newValidUntil }, Cmd.none )
 
         UpdateNewOption newOption ->
             ( { model | newOption = newOption }, Cmd.none )
 
         AddNewOption ->
             ( { model
-                | room = { room | options = model.newOption :: room.options }
+                | options = model.newOption :: model.options
                 , newOption = ""
               }
             , Cmd.none
@@ -72,13 +64,13 @@ update msg model =
 
         DeleteOption opt ->
             ( { model
-                | room = { room | options = List.filter (\a -> a /= opt) room.options }
+                | options = List.filter (\a -> a /= opt) model.options
               }
             , Cmd.none
             )
 
         CreatePoll ->
-            ( { model | error = Nothing }, Api.createPoll PollCreated model.room )
+            ( { model | error = Nothing }, Api.createPoll PollCreated model )
 
         PollCreated res ->
             case res of
@@ -89,20 +81,25 @@ update msg model =
                     ( model, model.navigator (Router.ViewPoll resp.pollId) )
 
 
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "CreatePoll"
     , body =
         [ input
             [ type_ "text"
-            , value model.room.title
+            , value model.title
             , onInput UpdateTitle
             ]
             []
             |> displayWithLabel "Title:"
         , input
             [ type_ "number"
-            , value (String.fromInt model.room.durationInMinutes)
+            , value (String.fromInt model.durationInMinutes)
             , onInput (\s -> UpdateDuration (Maybe.withDefault 0 (String.toInt s)))
             ]
             []
@@ -112,7 +109,7 @@ view model =
             [ input [ placeholder "New Option:", value model.newOption, onInput UpdateNewOption ] []
             , button [ onClick AddNewOption ] [ text "+" ]
             ]
-        , div [] (model.room.options |> List.map (displayOption DeleteOption))
+        , div [] (model.options |> List.map (displayOption DeleteOption))
         , button [ onClick CreatePoll ] [ text "Create" ]
         ]
     }

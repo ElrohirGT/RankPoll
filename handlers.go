@@ -90,8 +90,9 @@ func CreatePoll(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New()
 	key := id.String()
-	room := Room{
+	room := Room[time.Time]{
 		Id:         id,
+		Title:      req.Title,
 		Options:    req.PollOptions,
 		Votes:      make(map[string]Vote),
 		ValidUntil: time.Now().Add(req.PollingDuration),
@@ -134,7 +135,7 @@ func GetPollInfo(w http.ResponseWriter, r *http.Request) {
 
 	if !found {
 		_ = response.NewResponseBuilder(http.StatusNotFound).
-			SetError("Poll not found!", err).
+			SetError("Poll not found!", errors.New("the poll was not found")).
 			SendAsJSON(w)
 		return
 	}
@@ -148,12 +149,26 @@ func GetPollInfo(w http.ResponseWriter, r *http.Request) {
 	GlobalState.Rooms[pollId.String()] = pollInfo
 	GlobalState.Lock.Unlock()
 
+	posixInfo := toPosixTime(pollInfo)
+
 	_ = response.NewResponseBuilder(http.StatusOK).
-		SetBody(pollInfo).
+		SetBody(posixInfo).
 		SendAsJSON(w)
 }
 
-func computeSummary(room *Room) {
+func toPosixTime(r Room[time.Time]) Room[int64] {
+	posixTime := r.ValidUntil.UnixMilli()
+	return Room[int64]{
+		Id:         r.Id,
+		Title:      r.Title,
+		Options:    r.Options,
+		Votes:      r.Votes,
+		Summary:    r.Summary,
+		ValidUntil: posixTime,
+	}
+}
+
+func computeSummary(room *Room[time.Time]) {
 	summary := &PollSummary{
 		Rounds: make([]map[string]uint, 0),
 	}

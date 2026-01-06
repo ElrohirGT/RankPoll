@@ -182,8 +182,23 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    let
+        handleSubs toMsg subs innerModel =
+            Sub.map toMsg (subs innerModel)
+    in
+    case model.page of
+        LoginView innerModel ->
+            handleSubs LoginViewMsg LoginPage.subscriptions innerModel
+
+        CreatePollView innerModel ->
+            handleSubs CreatePollViewMsg CreatePollPage.subscriptions innerModel
+
+        ViewPollView innerModel ->
+            handleSubs ViewPollViewMsg ViewPollPage.subscriptions innerModel
+
+        NotFoundView innerModel ->
+            handleSubs NotFoundViewMsg NotFoundPage.subscriptions innerModel
 
 
 

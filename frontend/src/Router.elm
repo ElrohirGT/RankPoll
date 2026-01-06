@@ -2,7 +2,7 @@ module Router exposing (..)
 
 import Browser.Navigation as Nav
 import Url
-import Url.Builder exposing (relative)
+import Url.Builder exposing (absolute)
 import Url.Parser as P exposing (..)
 
 
@@ -26,16 +26,16 @@ toString : Page -> String
 toString page =
     case page of
         Login ->
-            relative [ "" ] []
+            absolute [ "" ] []
 
         CreatePoll ->
-            relative [ "poll" ] []
+            absolute [ "poll" ] []
 
         NotFound ->
-            relative [ "404" ] []
+            absolute [ "404" ] []
 
         ViewPoll id ->
-            relative [ "poll", id ] []
+            absolute [ "poll", id ] []
 
 
 urlParser : Parser (Page -> c) c
