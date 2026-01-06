@@ -1,37 +1,112 @@
 module Pages.CreatePoll exposing (..)
 
 import Browser
+import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onClick, onInput)
+import Router
 import Types
 
 
 type alias Model =
-    { user : Types.User
+    { room : Types.Room
+    , navigator : Router.Navigator Msg
+    , newOption : String
     }
 
 
-init : Types.Flags -> { user : { username : String, password : String } }
-init _ =
-    { user =
-        { username = ""
-        , password = ""
-        }
-    }
+init : Router.Navigator Msg -> ( Model, Cmd Msg )
+init navigator =
+    ( { room =
+            { title = ""
+            , options = []
+            , votes = Dict.empty
+            , validUntil = ""
+            , summary = Nothing
+            }
+      , navigator = navigator
+      , newOption = ""
+      }
+    , Cmd.none
+    )
 
 
 type Msg
-    = ClickedLogin
+    = UpdateTitle String
+    | UpdateValidUntil String
+    | UpdateNewOption String
+    | AddNewOption
+    | CreatePoll
+    | DeleteOption String
 
 
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
-    ( model, Cmd.none )
+    let
+        room =
+            model.room
+    in
+    case msg of
+        UpdateTitle newTitle ->
+            ( { model | room = { room | title = newTitle } }, Cmd.none )
+
+        UpdateValidUntil newValidUntil ->
+            ( { model | room = { room | validUntil = newValidUntil } }, Cmd.none )
+
+        UpdateNewOption newOption ->
+            ( { model | newOption = newOption }, Cmd.none )
+
+        AddNewOption ->
+            ( { model
+                | room = { room | options = model.newOption :: room.options }
+                , newOption = ""
+              }
+            , Cmd.none
+            )
+
+        DeleteOption opt ->
+            ( { model
+                | room = { room | options = List.filter (\a -> a /= opt) room.options }
+              }
+            , Cmd.none
+            )
+
+        CreatePoll ->
+            -- TODO: Call backend
+            ( model, Cmd.none )
 
 
 view : Model -> Browser.Document Msg
-view _ =
+view model =
     { title = "CreatePoll"
     , body =
-        []
+        [ input [ type_ "text", value model.room.title, onInput UpdateTitle ] []
+            |> displayWithLabel "Title:"
+        , input [ type_ "datetime-local", value model.room.validUntil, onInput UpdateValidUntil ] []
+            |> displayWithLabel "Accept until:"
+        , h2 [] [ text "Options:" ]
+        , div []
+            [ input [ placeholder "New Option:", value model.newOption, onInput UpdateNewOption ] []
+            , button [ onClick AddNewOption ] [ text "+" ]
+            ]
+        , div [] (model.room.options |> List.map (displayOption DeleteOption))
+        , button [ onClick CreatePoll ] [ text "Create" ]
+        ]
     }
+
+
+displayWithLabel : String -> Html msg -> Html msg
+displayWithLabel inputLabel element =
+    div []
+        [ label [] [ text inputLabel ]
+        , element
+        ]
+
+
+displayOption : (String -> msg) -> String -> Html msg
+displayOption onDelete opt =
+    div []
+        [ text opt
+        , button [ onClick (onDelete opt) ] [ text "Delete" ]
+        ]

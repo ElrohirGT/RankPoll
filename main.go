@@ -39,9 +39,13 @@ func main() {
 
 	router := http.NewServeMux()
 	MountHandlers(router)
+	withMiddlewares := ApplyMiddlewares(router,
+		CORSMiddleware,
+	)
+
 	srv := &http.Server{
 		Addr:    params.Addr,
-		Handler: router,
+		Handler: withMiddlewares,
 	}
 
 	go func() {
@@ -58,12 +62,9 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	go func() {
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Panicf("Failed to shutdown server: %s", err)
-		}
-	}()
-	<-ctx.Done()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Panicf("Failed to shutdown server: %s", err)
+	}
 
 	log.Println("Shut down... Goodbye!")
 }

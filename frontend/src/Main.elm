@@ -6,6 +6,8 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Pages.CreatePoll as CreatePollPage
 import Pages.Login as LoginPage
+import Pages.NotFound as NotFoundPage
+import Router
 import Types
 import Url
 
@@ -33,22 +35,18 @@ main =
 type Pages
     = LoginView LoginPage.Model
     | CreatePollView CreatePollPage.Model
+    | NotFoundView NotFoundPage.Model
 
 
 type alias Model =
     { key : Nav.Key
-    , url : Url.Url
     , page : Pages
     }
 
 
 init : Types.Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-    let
-        loginModel =
-            LoginView (LoginPage.init flags)
-    in
-    ( Model key url loginModel, Cmd.none )
+    redirectToPage key url
 
 
 
@@ -60,6 +58,48 @@ type Msg
     | UrlChanged Url.Url
     | LoginViewMsg LoginPage.Msg
     | CreatePollViewMsg CreatePollPage.Msg
+    | NotFoundViewMsg NotFoundPage.Msg
+
+
+redirectToPage : Nav.Key -> Url.Url -> ( Model, Cmd Msg )
+redirectToPage key url =
+    let
+        newPage =
+            Router.parseUrl url
+    in
+    case newPage of
+        Router.Login ->
+            let
+                ( innerModel, innerCmd ) =
+                    key
+                        |> Router.createNavigator
+                        |> LoginPage.init
+            in
+            ( Model key (LoginView innerModel)
+            , Cmd.map LoginViewMsg innerCmd
+            )
+
+        Router.CreatePoll ->
+            let
+                ( innerModel, innerCmd ) =
+                    key
+                        |> Router.createNavigator
+                        |> CreatePollPage.init
+            in
+            ( Model key (CreatePollView innerModel)
+            , Cmd.map CreatePollViewMsg innerCmd
+            )
+
+        Router.NotFound ->
+            let
+                ( innerModel, innerCmd ) =
+                    key
+                        |> Router.createNavigator
+                        |> NotFoundPage.init
+            in
+            ( Model key (NotFoundView innerModel)
+            , Cmd.map NotFoundViewMsg innerCmd
+            )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -88,9 +128,7 @@ update msg model =
                     ( model, Nav.load href )
 
         UrlChanged url ->
-            ( { model | url = url }
-            , Cmd.none
-            )
+            redirectToPage model.key url
 
         LoginViewMsg innerMsg ->
             case model.page of
@@ -104,6 +142,14 @@ update msg model =
             case model.page of
                 CreatePollView innerModel ->
                     handlePage CreatePollPage.update CreatePollView CreatePollViewMsg innerMsg innerModel
+
+                _ ->
+                    ( model, Cmd.none )
+
+        NotFoundViewMsg innerMsg ->
+            case model.page of
+                NotFoundView innerModel ->
+                    handlePage NotFoundPage.update NotFoundView NotFoundViewMsg innerMsg innerModel
 
                 _ ->
                     ( model, Cmd.none )
@@ -143,3 +189,6 @@ view model =
 
         CreatePollView innerModel ->
             toView innerModel CreatePollViewMsg CreatePollPage.view
+
+        NotFoundView innerModel ->
+            toView innerModel NotFoundViewMsg NotFoundPage.view
