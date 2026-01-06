@@ -3,11 +3,13 @@ module Router exposing (..)
 import Browser.Navigation as Nav
 import Url
 import Url.Builder exposing (relative)
+import Url.Parser as P exposing (..)
 
 
 type Page
     = Login
     | CreatePoll
+    | ViewPoll String
     | NotFound
 
 
@@ -32,15 +34,19 @@ toString page =
         NotFound ->
             relative [ "404" ] []
 
+        ViewPoll id ->
+            relative [ "poll", id ] []
 
-parseUrl : Url.Url -> Page
-parseUrl url =
-    case url.path of
-        "/" ->
-            Login
 
-        "/poll" ->
-            CreatePoll
+urlParser : Parser (Page -> c) c
+urlParser =
+    P.oneOf
+        [ P.map Login P.top
+        , P.map CreatePoll (P.s "poll")
+        , P.map ViewPoll (P.s "poll" </> P.string)
+        ]
 
-        _ ->
-            NotFound
+
+fromUrl : Url.Url -> Page
+fromUrl url =
+    Maybe.withDefault NotFound (P.parse urlParser url)

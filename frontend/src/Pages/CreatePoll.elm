@@ -15,6 +15,7 @@ type alias Model =
     { room : Types.Room
     , navigator : Router.Navigator Msg
     , newOption : String
+    , error : Maybe String
     }
 
 
@@ -29,6 +30,7 @@ init navigator =
             }
       , navigator = navigator
       , newOption = ""
+      , error = Nothing
       }
     , Cmd.none
     )
@@ -76,10 +78,15 @@ update msg model =
             )
 
         CreatePoll ->
-            ( model, Api.createPoll PollCreated model.room )
+            ( { model | error = Nothing }, Api.createPoll PollCreated model.room )
 
         PollCreated res ->
-            ( model, Cmd.none )
+            case res of
+                Err _ ->
+                    ( { model | error = Just "We're sorry, please try again later." }, Cmd.none )
+
+                Ok resp ->
+                    ( model, model.navigator (Router.ViewPoll resp.pollId) )
 
 
 view : Model -> Browser.Document Msg

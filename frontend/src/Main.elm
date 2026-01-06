@@ -7,6 +7,7 @@ import Html.Attributes exposing (..)
 import Pages.CreatePoll as CreatePollPage
 import Pages.Login as LoginPage
 import Pages.NotFound as NotFoundPage
+import Pages.ViewPoll as ViewPollPage
 import Router
 import Types
 import Url
@@ -35,6 +36,7 @@ main =
 type Pages
     = LoginView LoginPage.Model
     | CreatePollView CreatePollPage.Model
+    | ViewPollView ViewPollPage.Model
     | NotFoundView NotFoundPage.Model
 
 
@@ -59,13 +61,14 @@ type Msg
     | LoginViewMsg LoginPage.Msg
     | CreatePollViewMsg CreatePollPage.Msg
     | NotFoundViewMsg NotFoundPage.Msg
+    | ViewPollViewMsg ViewPollPage.Msg
 
 
 redirectToPage : Nav.Key -> Url.Url -> ( Model, Cmd Msg )
 redirectToPage key url =
     let
         newPage =
-            Router.parseUrl url
+            Router.fromUrl url
     in
     case newPage of
         Router.Login ->
@@ -99,6 +102,17 @@ redirectToPage key url =
             in
             ( Model key (NotFoundView innerModel)
             , Cmd.map NotFoundViewMsg innerCmd
+            )
+
+        Router.ViewPoll id ->
+            let
+                ( innerModel, innerCmd ) =
+                    key
+                        |> Router.createNavigator
+                        |> ViewPollPage.init id
+            in
+            ( Model key (ViewPollView innerModel)
+            , Cmd.map ViewPollViewMsg innerCmd
             )
 
 
@@ -154,6 +168,14 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        ViewPollViewMsg innerMsg ->
+            case model.page of
+                ViewPollView innerModel ->
+                    handlePage ViewPollPage.update ViewPollView ViewPollViewMsg innerMsg innerModel
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 
 -- SUBSCRIPTIONS
@@ -189,6 +211,9 @@ view model =
 
         CreatePollView innerModel ->
             toView innerModel CreatePollViewMsg CreatePollPage.view
+
+        ViewPollView innerModel ->
+            toView innerModel ViewPollViewMsg ViewPollPage.view
 
         NotFoundView innerModel ->
             toView innerModel NotFoundViewMsg NotFoundPage.view

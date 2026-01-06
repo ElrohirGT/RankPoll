@@ -29,7 +29,6 @@ func CORSMiddleware(next http.Handler) http.Handler {
 		w.Header().Add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
 
 		if r.Method == http.MethodOptions {
-			log.Println("`Options` CORS request detected! Responding ok!")
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -66,6 +65,7 @@ func RequestLoggerMiddleware(next http.Handler) http.Handler {
 				w.Header().Add(key, v)
 			}
 		}
+		w.WriteHeader(resp.StatusCode)
 
 		_, err = io.Copy(w, bytes.NewBuffer(body))
 		if err != nil {
